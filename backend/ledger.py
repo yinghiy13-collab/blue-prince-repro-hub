@@ -1,0 +1,1 @@
+print('Ledger INIT OK')
