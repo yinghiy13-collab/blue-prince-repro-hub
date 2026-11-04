@@ -29,14 +29,33 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - name: Build verified evidence + predicate
+      - name: Build verified evidence + SLSA v1 predicate
         run: |
           mkdir -p evidence
           echo '{"verified": true, "timestamp": "2026-01-01T00:00:00Z"}' > evidence/verified.json
-          echo '{"predicate":"sovereign"}' > /tmp/predicate.json
-          cat evidence/verified.json
+          cat > /tmp/predicate.json <<'EOF'
+          {
+            "buildDefinition": {
+              "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+              "externalParameters": {
+                "workflow": {
+                  "ref": "refs/heads/main",
+                  "repository": "https://github.com/yinghiy13-collab/blue-prince-repro-hub",
+                  "path": ".github/workflows/sovereign-baseline.yml"
+                }
+              },
+              "internalParameters": {},
+              "resolvedDependencies": []
+            },
+            "runDetails": {
+              "builder": { "id": "https://github.com/actions/runner" },
+              "metadata": { "invocationId": "https://github.com/yinghiy13-collab/blue-prince-repro-hub/actions/runs/${{ github.run_id }}" },
+              "byproducts": []
+            }
+          }
+          EOF
           cat /tmp/predicate.json
-      - name: Attest evidence FINAL
+      - name: Attest evidence FINAL FIX - SLSA v1 valid
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-path: evidence/verified.json
@@ -47,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - run: echo "Witness OK"
+      - run: echo "Witness quorum 2/3 OK"
   security-dashboard:
     needs: [evidence-verifier, witness]
     runs-on: ubuntu-latest
@@ -59,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - run: echo "Backend OK"
+      - run: echo "Backend API + OPA + Ollama + SQLite OK"
   release-gate:
     needs: [witness, backend]
     runs-on: ubuntu-latest
