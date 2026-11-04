@@ -2,21 +2,9 @@
   "files": [
     {
       "functions": [],
-      "loc": 1,
-      "path": "src/code_analyzer.py",
-      "sha256": "93a1b677e9f4803d3039386b9d644d2a4a93d3cbbd0691428cafb1accceeb399"
-    },
-    {
-      "functions": [],
-      "loc": 12,
-      "path": "src/ast_parser.py",
-      "sha256": "a5d7dd1f1b0c5f3d27cc200d6b22858e9f3fd294184bc496b75a91623831926b"
-    },
-    {
-      "functions": [],
-      "loc": 2,
-      "path": "src/rego_checker.py",
-      "sha256": "e12398de338c95b0a75e1387ac1a775def34b07efb1bded9405144f6fab88f31"
+      "loc": 11,
+      "path": "src/evidence_verifier.py",
+      "sha256": "dd2ee2c80b41c50eaff57b802ffbeaeeb493d854a8538ffa6cf48d2e8072cded"
     },
     {
       "functions": [
@@ -29,9 +17,21 @@
     },
     {
       "functions": [],
-      "loc": 11,
-      "path": "src/evidence_verifier.py",
-      "sha256": "dd2ee2c80b41c50eaff57b802ffbeaeeb493d854a8538ffa6cf48d2e8072cded"
+      "loc": 2,
+      "path": "src/rego_checker.py",
+      "sha256": "e12398de338c95b0a75e1387ac1a775def34b07efb1bded9405144f6fab88f31"
+    },
+    {
+      "functions": [],
+      "loc": 1,
+      "path": "src/code_analyzer.py",
+      "sha256": "93a1b677e9f4803d3039386b9d644d2a4a93d3cbbd0691428cafb1accceeb399"
+    },
+    {
+      "functions": [],
+      "loc": 12,
+      "path": "src/ast_parser.py",
+      "sha256": "a5d7dd1f1b0c5f3d27cc200d6b22858e9f3fd294184bc496b75a91623831926b"
     }
   ],
   "total_files": 5,
