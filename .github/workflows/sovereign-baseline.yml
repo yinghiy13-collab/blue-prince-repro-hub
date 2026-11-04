@@ -74,7 +74,7 @@ jobs:
         with:
           name: ast-evidence
           path: evidence
-      - uses: anchore/sbom-action/download-syft@3fb42a22e4c3bdf2b4c08afb134d7b4bc4b2c2e9
+      - uses: anchore/sbom-action/download-syft@v0
       - run: syft packages dir:. -o spdx-json > evidence/sbom.json || echo "[]" > evidence/sbom.json
       - run: python tools/independent_verifier.py
       - run: |
