@@ -1,0 +1,32 @@
+
+name: sovereign-baseline
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  ast-layer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - run: python src/ast_parser.py src/miron_ir.py
+  rego-layer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: open-policy-agent/setup-opa@34a30e8a924d1b03ce2cf7abe97250bbb1f332b5
+        with:
+          version: 1.9.0
+      - run: opa check policy/ || true
+  evidence-layer:
+    needs: [ast-layer, rego-layer]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - run: python tools/differential_attack_test.py
+  witness-layer:
+    needs: evidence-layer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - run: python tools/witness_sim.py
