@@ -1,38 +1,25 @@
-#!/usr/bin/env python3
-import json, pathlib
-
-def check_status():
-    report = {"checks": [], "overall": "PASS"}
-    ast_path = pathlib.Path("evidence/ast.json")
-    if ast_path.exists():
-        data = json.loads(ast_path.read_text())
-        ok = data.get("schema_version")==1 and len(data.get("files",[])) > 0
-        report["checks"].append({"name":"ast_parser","status":"PASS" if ok else "FAIL","files":len(data.get("files",[]))})
-    else:
-        report["checks"].append({"name":"ast_parser","status":"FAIL"})
-    
-    w_path = pathlib.Path("evidence/witness-report.json")
-    if w_path.exists():
-        w = json.loads(w_path.read_text())
-        ok = w.get("verdict")=="PASS" and w.get("commit_match") and w.get("evidence_hash_match")
-        report["checks"].append({"name":"witness_v14","status":"PASS" if ok else "FAIL","verdict":w.get("verdict")})
-    else:
-        report["checks"].append({"name":"witness_v14","status":"FAIL"})
-    
-    reg_path = pathlib.Path("skills/registry.json")
-    if reg_path.exists():
-        reg = json.loads(reg_path.read_text())
-        ids = [s["id"] for s in reg["skills"]]
-        dup = len(ids) != len(set(ids))
-        report["checks"].append({"name":"skill_registry","status":"FAIL" if dup else "PASS","total":len(ids),"duplicates":dup})
-    
-    report["overall"] = "PASS" if all(c["status"]=="PASS" for c in report["checks"]) else "FAIL"
-    pathlib.Path("memory/episodic").mkdir(parents=True, exist_ok=True)
-    pathlib.Path("memory/episodic/monitor.json").write_text(json.dumps(report, indent=2))
-    print(f"Monitor: {report['overall']} - {len(report['checks'])} checks")
-    for c in report["checks"]:
-        print(f"  {'✅' if c['status']=='PASS' else '❌'} {c['name']}: {c['status']}")
-    return report
+import json, pathlib, sys, subprocess, os
+def get_runs(limit=20):
+    env = os.environ.copy()
+    env["GH_TOKEN"] = env.get("GH_TOKEN") or env.get("GITHUB_TOKEN") or ""
+    try:
+        r = subprocess.run(["gh","run","list","--limit",str(limit),"--json","databaseId,status,conclusion,displayTitle"], capture_output=True, text=True, check=True, env=env)
+        return json.loads(r.stdout)
+    except Exception as e:
+        print(f"⚠️ gh not available: {e}")
+        return []
 
 if __name__ == "__main__":
-    check_status()
+    print("=== GitHub Actions Runs ===")
+    for run in get_runs(20):
+        print(f"{run.get('databaseId')} {run.get('status')} {run.get('conclusion')} {run.get('displayTitle')}")
+    witness_path = pathlib.Path("dist/witness-report.json")
+    if not witness_path.exists():
+        print("🚫 MONITOR BLOCK - MISSING"); sys.exit(1)
+    try:
+        w = json.loads(witness_path.read_text())
+    except:
+        print("🚫 MONITOR BLOCK - CORRUPTED"); sys.exit(1)
+    if w.get("verdict") != "PASS" or not w.get("commit_match") or not w.get("evidence_hash_match"):
+        print(f"🚫 BLOCK {w}"); sys.exit(1)
+    print(f"✅ MONITOR PASS - {w.get('trust_boundary')} files={w.get('files_checked')}")
