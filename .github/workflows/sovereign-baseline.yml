@@ -1,167 +1,279 @@
 name: sovereign-baseline (full production)
+
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - fix/witness-v14
   workflow_dispatch:
 
+concurrency:
+  group: sovereign-baseline-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
-  contents: read # ลดสิทธิ์ลงเหลือ read เพื่อความปลอดภัย (เว้นแต่จะใช้ write จริงๆ)
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
   ast-miron:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: actions/setup-python@ece7cb06caaf5ff74198d8649806c4678c61a1 # ✅ Pinned v5.1.0
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a # v5.6.0
         with:
           python-version: '3.11'
-      - name: Install deps
-        # run: pip install --require-hashes -r requirements.lock # ✅ ใช้ lockfile ในอนาคต
-        run: pip install jsonschema
-      - name: Run REAL AST parser - Zero Mock
-        run: |
-          echo "Running REAL AST parser, not echo"
-          python src/ast_parser.py src
-          cat evidence/ast.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - run: python src/ast_parser.py src
+      - run: test -s evidence/ast.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ast-evidence
           path: evidence/ast.json
+          if-no-files-found: error
 
   rego-checker:
-    runs-on: ubuntu-24.04
     needs: ast-miron
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: actions/setup-python@ece7cb06caaf5ff74198d8649806c4678c61a1 # ✅ Pinned
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a
         with:
           python-version: '3.11'
-      - uses: open-policy-agent/setup-opa@34a30e8a924d1b03ce2cf7abe97250bbb1f332b5
+      - uses: open-policy-agent/setup-opa@34a30e84af5a322d45c3b51cb1e0f6be8b00f00
         with:
           version: v1.9.0
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/download-artifact@d3f86a106a0c49b3d7ab36867b394f156f3df7d2
         with:
           name: ast-evidence
           path: evidence
-      - name: Evaluate OPA (Fail-Closed)
-        # ✅ ลบ || true ออก และบังคับให้ Output ของ deny ต้องเป็น array ว่าง []
+      - name: Evaluate OPA (fail-closed)
         run: |
-          opa eval --format=json -d policy/gate.rego -i evidence/ast.json "data.build_gate.deny" > opa_result.json
-          cat opa_result.json
-          # ใช้ jq ตรวจสอบว่าผลลัพธ์ต้องเป็น array ว่าง (ไม่มีการ deny)
+          opa eval --format=json -d policy/gate.rego \
+            -i evidence/ast.json "data.build_gate.deny" > opa_result.json
           jq -e '.result[0].expressions[0].value | length == 0' opa_result.json
 
   code-analyze:
-    runs-on: ubuntu-24.04
     needs: ast-miron
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: actions/setup-python@ece7cb06caaf5ff74198d8649806c4678c61a1 # ✅ Pinned
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a
         with:
           python-version: '3.11'
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/download-artifact@d3f86a106a0c49b3d7ab36867b394f156f3df7d2
         with:
           name: ast-evidence
           path: evidence
-      - name: Run Code Analyzer (Fail-Closed)
-        # ✅ ลบ || echo ออก
+      - run: python src/code_analyzer.py
+
+  dependency-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a
+        with:
+          python-version: '3.11'
+      - name: Audit declared dependencies
         run: |
-          python src/code_analyzer.py
-          ls evidence/
+          python -m pip install --upgrade pip pip-audit
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+            pip-audit -r requirements.txt --strict
+          elif [ -f pyproject.toml ]; then
+            python -m pip install .
+            pip-audit --strict
+          else
+            echo "::error::No requirements.txt or pyproject.toml found"
+            exit 1
+          fi
+
+  sast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a
+        with:
+          python-version: '3.11'
+      - run: |
+          python -m pip install bandit
+          bandit -r src tools backend -f sarif -o bandit.sarif -lll
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: sast-results
+          path: bandit.sarif
+          if-no-files-found: warn
 
   evidence-verifier:
+    needs: [rego-checker, code-analyze]
     runs-on: ubuntu-24.04
-    needs: [ast-miron, rego-checker, code-analyze]
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: actions/setup-python@ece7cb06caaf5ff74198d8649806c4678c61a1 # ✅ Pinned
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a
         with:
           python-version: '3.11'
-      - run: pip install jsonschema
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/download-artifact@d3f86a106a0c49b3d7ab36867b394f156f3df7d2
         with:
           name: ast-evidence
           path: evidence
-      - name: Install Syft (Pinned)
-        # ✅ เปลี่ยนจาก download-syft@v0 มาใช้ SHA (คุณต้องไปเอา SHA จริงของ v0 ล่าสุดมาใส่)
-        uses: anchore/sbom-action/download-syft@v0 
-      - name: Generate SBOM (Fail-Closed)
-        # ✅ ลบ || echo "[]" ออก
-        run: syft packages dir:. -o spdx-json > evidence/sbom.json
-      
-      - name: Run Independent Verifier
-        run: python tools/independent_verifier.py
-      
-      - name: Create Predicate for Attestation
+
+      - name: Verify evidence
+        run: python src/evidence_verifier.py
+
+      - name: Assert verification result
         run: |
-          COMMIT=$(git rev-parse HEAD)
-          cat > /tmp/predicate.json <<EOF
-          {
-            "builder": {"id": "https://github.com/yinghiy13-collab/blue-prince-repro-hub/.github/workflows/sovereign-baseline.yml@refs/heads/main"},
-            "buildType": "https://blue-prince.dev/evidence/v1",
-            "buildDefinition": {"buildType": "https://blue-prince.dev/evidence/v1", "externalParameters": {"source": {"uri": "https://github.com/yinghiy13-collab/blue-prince-repro-hub"}}, "internalParameters": {"github": {"repository": "${{ github.repository }}", "ref": "${{ github.ref }}" }}},
-            "evidence": $(cat evidence/verified.json)
+          python - <<'PY'
+          import json, sys
+          with open("evidence/verified.json") as f:
+              result = json.load(f)
+          if result.get("status") != "VERIFIED":
+              sys.exit(f"verification failed: {result}")
+          if not result.get("evidence_sha256"):
+              sys.exit("verified.json missing evidence_sha256")
+          PY
+
+      - name: Build provenance metadata
+        run: |
+          python - <<'PY'
+          import json, os
+          metadata = {
+              "commit": os.environ["GITHUB_SHA"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "ref": os.environ["GITHUB_REF"],
           }
-          EOF
-          cat /tmp/predicate.json
-          
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+          with open("evidence/provenance.json", "w") as f:
+              json.dump(metadata, f, indent=2)
+          PY
+
+      - name: Build attestation predicate
+        run: |
+          python - <<'PY'
+          import json
+          verified = json.load(open("evidence/verified.json"))
+          provenance = json.load(open("evidence/provenance.json"))
+          predicate = {"verification": verified, "provenance": provenance}
+          with open("/tmp/predicate.json", "w") as f:
+              json.dump(predicate, f, indent=2)
+          PY
+
+      - name: Attest verified AST evidence
+        uses: actions/attest@93af5173a94a424432d4877196ea4093a5e1ad7e # v1.4.1
         with:
-          subject-path: evidence/verified.json
+          subject-path: evidence/ast.json
           predicate-type: https://blue-prince.dev/evidence/v1
           predicate-path: /tmp/predicate.json
-          
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: verified-evidence
-          path: evidence/
+          path: |
+            evidence/ast.json
+            evidence/verified.json
+            evidence/provenance.json
+          if-no-files-found: error
 
   witness:
-    runs-on: ubuntu-24.04
     needs: evidence-verifier
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@d3f86a106a0c49b3d7ab36867b394f156f3df7d2
         with:
           name: verified-evidence
           path: evidence
-      - run: cat evidence/verified.json
+
+      - name: Independent verification
+        run: |
+          python tools/independent_verifier.py \
+            --evidence evidence/ast.json \
+            --verified evidence/verified.json \
+            --provenance evidence/provenance.json \
+            --output evidence/witness-report.json
+
+      - name: Assert witness verdict
+        run: |
+          python - <<'PY'
+          import json, sys
+          report = json.load(open("evidence/witness-report.json"))
+          if report.get("verdict") != "PASS":
+              sys.exit(f"witness rejected: {report}")
+          if not report.get("evidence_hash_match"):
+              sys.exit("witness hash binding failed")
+          if not report.get("commit_match"):
+              sys.exit("witness commit binding failed")
+          PY
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: witness-report
+          path: evidence/witness-report.json
+          if-no-files-found: warn
 
   security-dashboard:
+    needs: witness
     runs-on: ubuntu-24.04
-    needs: evidence-verifier
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a
         with:
-          name: verified-evidence
+          python-version: '3.11'
+      - uses: actions/download-artifact@d3f86a106a0c49b3d7ab36867b394f156f3df7d2
+        with:
+          name: witness-report
           path: evidence
-      - run: cat evidence/ast.json
+      - run: python backend/ledger.py --witness evidence/witness-report.json --output evidence/ledger.jsonl
+      - run: test -s evidence/ledger.jsonl
 
   backend:
+    needs: security-dashboard
     runs-on: ubuntu-24.04
-    needs: evidence-verifier
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af500e36b25990a5a7955fb071c8748461c4a
         with:
-          name: verified-evidence
-          path: evidence
-      - run: ls evidence/
+          python-version: '3.11'
+      - name: Ensure tests exist
+        run: |
+          test -d tests
+          find tests -name 'test_*.py' | grep -q .
+      - run: python -m pytest tests/ -v
 
   release-gate:
+    needs: [ast-miron, rego-checker, code-analyze, dependency-audit, sast, evidence-verifier, witness, security-dashboard, backend]
+    if: always()
     runs-on: ubuntu-24.04
-    needs: [witness, security-dashboard, backend]
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: verified-evidence
-          path: evidence
-      - name: Final Verification Gate
-        # ✅ บังคับให้ต้องผ่าน Verifier จริงๆ ถึงจะขึ้นข้อความ Pass
+      - name: Fail-Closed Verdict - Check ALL jobs
         run: |
-          python tools/independent_verifier.py
-          echo "RELEASE GATE PASS - Real Evidence"
+          if [ "${{ needs.ast-miron.result }}" != "success" ] || \
+             [ "${{ needs.rego-checker.result }}" != "success" ] || \
+             [ "${{ needs.code-analyze.result }}" != "success" ] || \
+             [ "${{ needs.evidence-verifier.result }}" != "success" ] || \
+             [ "${{ needs.witness.result }}" != "success" ] || \
+             [ "${{ needs.security-dashboard.result }}" != "success" ] || \
+             [ "${{ needs.backend.result }}" != "success" ] || \
+             [ "${{ needs.dependency-audit.result }}" != "success" ] || \
+             [ "${{ needs.sast.result }}" != "success" ]; then
+            echo "::error::RELEASE BLOCKED - one or more required jobs failed"
+            exit 1
+          fi
+          echo "RELEASE APPROVED - all 9 required jobs succeeded"
