@@ -1,0 +1,19 @@
+{
+  "phase": "2",
+  "base": "v2.1.0 REAL 67b1e58",
+  "dashboard": {
+    "input": "evidence/witness-report.json",
+    "output": "dashboard.html",
+    "memory": "short_term + long_term"
+  },
+  "monitor": {
+    "input": "GitHub Actions API runs/41846328370",
+    "output": "memory/episodic/run.json",
+    "check": "10 jobs GREEN"
+  },
+  "ollama_advisory": {
+    "input": "witness FAIL",
+    "output": "advisory.md",
+    "rule": "advisory only, never block"
+  }
+}

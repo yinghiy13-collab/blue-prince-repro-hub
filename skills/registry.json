@@ -1,0 +1,99 @@
+{
+  "version": "v2.1.0",
+  "base_commit": "67b1e58",
+  "skills": [
+    {
+      "id": "ast_parser",
+      "file": "src/ast_parser.py",
+      "spec": "REAL AST parse + SHA256 + schema_version 1",
+      "deps": [],
+      "status": "DONE v2.1.0",
+      "file_exists": true,
+      "duplicate": false
+    },
+    {
+      "id": "evidence_verifier",
+      "file": "src/evidence_verifier.py",
+      "spec": "TOCTOU single-read + schema check + SHA256 binding",
+      "deps": [
+        "ast_parser"
+      ],
+      "status": "DONE",
+      "file_exists": true,
+      "duplicate": false
+    },
+    {
+      "id": "witness_v14",
+      "file": "tools/independent_verifier.py",
+      "spec": "SAME_COMMIT + hash binding + commit_match + evidence_hash_match",
+      "deps": [
+        "evidence_verifier"
+      ],
+      "status": "DONE PASS",
+      "file_exists": true,
+      "duplicate": false
+    },
+    {
+      "id": "opa_gate",
+      "file": "policy/gate.rego",
+      "spec": "build_gate deny if empty files / invalid sha256 / unsafe eval - fail-closed",
+      "deps": [],
+      "status": "DONE",
+      "file_exists": true,
+      "duplicate": false
+    },
+    {
+      "id": "ledger",
+      "file": "backend/ledger.py",
+      "spec": "hash-chain append-only ledger",
+      "deps": [
+        "witness_v14"
+      ],
+      "status": "DONE",
+      "file_exists": true,
+      "duplicate": false
+    },
+    {
+      "id": "tests",
+      "file": "tests/test_witness.py",
+      "spec": "10 cases sandbox tmp_path + monkeypatch",
+      "deps": [
+        "witness_v14"
+      ],
+      "status": "DONE 10 passed",
+      "file_exists": true,
+      "duplicate": false
+    },
+    {
+      "id": "dashboard",
+      "file": "backend/dashboard.py",
+      "spec": "\u0e2d\u0e48\u0e32\u0e19 witness-report + ast.json -> dashboard.html",
+      "deps": [
+        "ledger"
+      ],
+      "status": "TODO - Phase 2",
+      "file_exists": false,
+      "duplicate": false
+    },
+    {
+      "id": "monitor",
+      "file": "tools/monitor.py",
+      "spec": "\u0e15\u0e23\u0e27\u0e08 GitHub Actions run status auto",
+      "deps": [
+        "witness_v14"
+      ],
+      "status": "TODO - Phase 2",
+      "file_exists": false,
+      "duplicate": false
+    },
+    {
+      "id": "ollama_advisory",
+      "file": "tools/advisory.py",
+      "spec": "Ollama advisory only - \u0e44\u0e21\u0e48 block release",
+      "deps": [],
+      "status": "TODO - Phase 2",
+      "file_exists": false,
+      "duplicate": false
+    }
+  ]
+}
