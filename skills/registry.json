@@ -71,8 +71,8 @@
       "deps": [
         "ledger"
       ],
-      "status": "TODO - Phase 2",
-      "file_exists": false,
+      "status": "DONE - Phase 2",
+      "file_exists": true,
       "duplicate": false
     },
     {
@@ -82,8 +82,8 @@
       "deps": [
         "witness_v14"
       ],
-      "status": "TODO - Phase 2",
-      "file_exists": false,
+      "status": "DONE - Phase 2",
+      "file_exists": true,
       "duplicate": false
     },
     {
@@ -91,8 +91,8 @@
       "file": "tools/advisory.py",
       "spec": "Ollama advisory only - \u0e44\u0e21\u0e48 block release",
       "deps": [],
-      "status": "TODO - Phase 2",
-      "file_exists": false,
+      "status": "DONE - Phase 2",
+      "file_exists": true,
       "duplicate": false
     }
   ]

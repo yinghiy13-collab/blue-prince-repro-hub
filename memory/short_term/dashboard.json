@@ -1,0 +1,19 @@
+{
+  "version": "v2.1.0",
+  "generated_at": "2026-11-04T15:05:43.187671Z",
+  "sovereign": {
+    "files": 5,
+    "schema_version": 1,
+    "verdict": "PASS",
+    "trust_boundary": "SAME_COMMIT",
+    "commit_match": true,
+    "evidence_hash_match": true,
+    "commit": "67b1e580a979"
+  },
+  "skills": {
+    "total": 9,
+    "done": 9,
+    "todo": 0
+  },
+  "memory": {}
+}

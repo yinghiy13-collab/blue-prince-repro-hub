@@ -1,0 +1,21 @@
+{
+  "checks": [
+    {
+      "name": "ast_parser",
+      "status": "PASS",
+      "files": 5
+    },
+    {
+      "name": "witness_v14",
+      "status": "PASS",
+      "verdict": "PASS"
+    },
+    {
+      "name": "skill_registry",
+      "status": "PASS",
+      "total": 9,
+      "duplicates": false
+    }
+  ],
+  "overall": "PASS"
+}
