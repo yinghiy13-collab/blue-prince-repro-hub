@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Sovereign Baseline Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body{font-family:monospace;background:#0d1117;color:#c9d1d9;padding:20px}
+  .card{border:1px solid #30363d;border-radius:8px;padding:16px;margin:12px 0;background:#161b22}
+  .pass{color:#3fb950;font-weight:bold}
+  .fail{color:#f85149;font-weight:bold}
+  h1{color:#58a6ff}
+  table{width:100%;border-collapse:collapse}
+  td,th{border:1px solid #30363d;padding:6px;text-align:left}
+</style>
+</head>
+<body>
+<h1>🛡️ Sovereign Baseline v2.1.0</h1>
+
+<div class="card">
+  <h2>Overall Status: <span id="overall" class="pass">LOADING...</span></h2>
+  <p>Trust Boundary: <span id="trust">-</span> |
+     Commit: <span id="commit">-</span> |
+     Files: <span id="files">-</span></p>
+</div>
+
+<div class="card">
+  <h3>Checks</h3>
+  <table id="checks"><tr><th>Name</th><th>Status</th></tr></table>
+</div>
+
+<div class="card">
+  <h3>Run History (last 20)</h3>
+  <canvas id="chart" width="400" height="100"></canvas>
+</div>
+
+<script>
+const ctx = document.getElementById('chart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: { labels: [], datasets: [{ label: 'Runs PASS', data: [], borderColor: '#3fb950' }] },
+  options: { scales: { y: { min: 0, max: 1, ticks: { stepSize: 1 } } } }
+});
+
+async function fetchMonitor() {
+  try {
+    const r = await fetch('/api/monitor');
+    const j = await r.json();
+    const d = j.data;
+    const el = document.getElementById('overall');
+    el.textContent = d.overall;
+    el.className = d.overall === 'PASS' ? 'pass' : 'fail';
+
+    const tbl = document.getElementById('checks');
+    tbl.innerHTML = '<tr><th>Name</th><th>Status</th></tr>';
+    if(d.checks) {
+        d.checks.forEach(c => {
+          tbl.innerHTML += `<tr><td>${c.name}</td><td class="${c.status==='PASS'?'pass':'fail'}">${c.status}</td></tr>`;
+        });
+    }
+
+    chart.data.labels.push(new Date().toLocaleTimeString());
+    chart.data.datasets[0].data.push(d.overall === 'PASS' ? 1 : 0);
+    if (chart.data.labels.length > 20) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
+    chart.update();
+  } catch (e) {
+    document.getElementById('overall').textContent = 'API UNREACHABLE';
+    document.getElementById('overall').className = 'fail';
+  }
+}
+
+fetchMonitor();
+setInterval(fetchMonitor, 5000);
+</script>
+</body>
+</html>
