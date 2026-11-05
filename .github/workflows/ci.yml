@@ -48,11 +48,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Build provenance
+        run: |
+          python -c "import json,os; json.dump({'commit':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'repository':os.environ['GITHUB_REPOSITORY'],'ref':os.environ['GITHUB_REF']}, open('dist/provenance.json','w'), indent=2)"
       - name: Verify Evidence
         run: |
           pip install -q pyyaml jsonschema
           python src/evidence_verifier.py --evidence dist/ast.json --out dist/verified.json
-          python tools/independent_verifier.py --evidence dist/ast.json --verified dist/verified.json --out dist/witness-report.json
+          python tools/independent_verifier.py --evidence dist/ast.json --verified dist/verified.json --provenance dist/provenance.json --out dist/witness-report.json
           cat dist/witness-report.json
       - uses: actions/attest-build-provenance@v2
         with:
