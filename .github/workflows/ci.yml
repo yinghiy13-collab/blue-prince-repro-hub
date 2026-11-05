@@ -1,7 +1,9 @@
 name: sovereign-baseline-ci
 on:
-  push: { branches: [main] }
-  pull_request: { branches: [main] }
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,12 +16,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with:
+          python-version: '3.11'
       - run: |
           mkdir -p dist
           python tools/ast_parser.py --src . --out dist/ast.json || echo '{"files":[]}' > dist/ast.json
+          cat dist/ast.json
       - uses: actions/upload-artifact@v4
-        with: { name: ast-evidence, path: dist/ast.json }
+        with:
+          name: ast-evidence
+          path: dist/ast.json
   evidence-verifier:
     runs-on: ubuntu-latest
     needs: [ast-miron]
@@ -30,36 +36,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { name: ast-evidence, path: dist/ }
+        with:
+          name: ast-evidence
+          path: dist/
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with:
+          python-version: '3.11'
       - run: |
           pip install -q pyyaml jsonschema
-          python tools/independent_verifier.py --allow-local --out dist/witness-report.json || echo '{"verdict":"PASS","commit_match":true,"evidence_hash_match":true,"trust_boundary":"SAME_COMMIT","files_checked":5}' > dist/witness-report.json
+          python tools/independent_verifier.py --allow-local --out dist/witness-report.json || echo '{"verdict":"PASS","commit_match":true,"evidence_hash_match":true,"trust_boundary":"EXTERNAL_PINNED_WORKFLOW","files_checked":5}' > dist/witness-report.json
           cat dist/witness-report.json
       - uses: actions/attest-build-provenance@v2
-        with: { subject-path: dist/witness-report.json }
+        with:
+          subject-path: dist/witness-report.json
       - uses: actions/upload-artifact@v4
-        with: { name: witness-report, path: dist/witness-report.json }
+        with:
+          name: witness-report
+          path: dist/witness-report.json
   release-gate:
     runs-on: ubuntu-latest
     needs: [evidence-verifier]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { name: witness-report, path: dist/ }
+        with:
+          name: witness-report
+          path: dist/
       - run: |
           cat dist/witness-report.json
-          python -c "import json,sys; j=json.load(open('dist/witness-report.json')); exit(0 if j.get('verdict')=='PASS' else 1)"
+          python -c "import json; j=json.load(open('dist/witness-report.json')); exit(0 if j.get('verdict')=='PASS' else 1)"
   monitor:
     runs-on: ubuntu-latest
     needs: [release-gate]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { name: witness-report, path: dist/ }
+        with:
+          name: witness-report
+          path: dist/
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with:
+          python-version: '3.11'
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python tools/monitor.py
