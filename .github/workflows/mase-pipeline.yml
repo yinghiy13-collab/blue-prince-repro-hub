@@ -35,7 +35,7 @@ jobs:
           python-version: '3.11'
           
       - name: Run AST Parser
-        run: python scripts/ast_parser.py
+        run: python src/ast_parser.py
         
       - name: Setup OPA
         uses: open-policy-agent/setup-opa@v2
