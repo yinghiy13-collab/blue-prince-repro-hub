@@ -5,8 +5,8 @@ src_root = pathlib.Path("src")
 evidence_dir = pathlib.Path("evidence")
 evidence_dir.mkdir(exist_ok=True)
 
-# 1. แก้ schema_version ให้เป็น String "BPRH-EVID-v1"
-out = {"version": "v2.1.0-real", "schema_version": "BPRH-EVID-v1", "files": []}
+# 🎯 จุดที่แก้: เปลี่ยนจาก "BPRH-EVID-v1" เป็น 1 (Integer)
+out = {"version": "v2.1.0-real", "schema_version": 1, "files": []}
 
 for py_file in sorted(src_root.rglob("*.py")):
     if "__pycache__" in str(py_file):
@@ -20,7 +20,6 @@ for py_file in sorted(src_root.rglob("*.py")):
         classes = [n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
         ast_ok = True
     except SyntaxError as e:
-        # 2. เปลี่ยนจาก SKIP เป็น Fail-Closed (Exit 1)
         print(f"FATAL: AST Parsing failed for {py_file}")
         print(f"Reason: {e}")
         sys.exit(1) 
