@@ -1,27 +1,41 @@
 #!/usr/bin/env python3
-"""Minimal deterministic AST diagnostic."""
-from pathlib import Path
-import ast, json, sys
+import ast, json, hashlib, pathlib, sys
 
-SOURCE_PATH = Path("src/memory_anchor_validator.py")
-OUTPUT_PATH = Path("evidence/ast.json")
+src_root = pathlib.Path("src")
+evidence_dir = pathlib.Path("evidence")
+evidence_dir.mkdir(exist_ok=True)
 
-def main() -> int:
-    if not SOURCE_PATH.is_file(): 
-        print(f"FAIL-CLOSED: missing {SOURCE_PATH}"); return 1
+# 1. แก้ schema_version ให้เป็น String "BPRH-EVID-v1"
+out = {"version": "v2.1.0-real", "schema_version": "BPRH-EVID-v1", "files": []}
+
+for py_file in sorted(src_root.rglob("*.py")):
+    if "__pycache__" in str(py_file):
+        continue
+        
+    code_text = py_file.read_text(encoding="utf-8", errors="ignore")
+    
     try:
-        tree = ast.parse(SOURCE_PATH.read_text(encoding="utf-8"))
-    except SyntaxError as error:
-        print(f"FAIL-CLOSED: syntax error: {error}"); return 1
+        tree = ast.parse(code_text, filename=str(py_file))
+        funcs = [n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+        classes = [n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
+        ast_ok = True
+    except SyntaxError as e:
+        # 2. เปลี่ยนจาก SKIP เป็น Fail-Closed (Exit 1)
+        print(f"FATAL: AST Parsing failed for {py_file}")
+        print(f"Reason: {e}")
+        sys.exit(1) 
 
-    result = {
-        "source": str(SOURCE_PATH), "language": "python", "parser": "python-ast",
-        "functions": [node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)],
-        "policy_context": {"requested_capability": "READ_SOURCE", "simulation_only": True}
-    }
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print(f"PASS: AST diagnostic generated {OUTPUT_PATH}")
-    return 0
+    sha = hashlib.sha256(code_text.encode("utf-8")).hexdigest()
+    out["files"].append({
+        "path": str(py_file),
+        "sha256": sha,
+        "ast": {"type": "Module", "functions": funcs, "classes": classes, "parse_ok": ast_ok},
+        "loc": len(code_text.splitlines()),
+        "size": len(code_text)
+    })
 
-if __name__ == "__main__": raise SystemExit(main())
+out["total_files"] = len(out["files"])
+out["total_loc"] = sum(f["loc"] for f in out["files"])
+path = evidence_dir / "ast.json"
+path.write_text(json.dumps(out, indent=2, sort_keys=True), encoding="utf-8")
+print(f"AST OK: {out['total_files']} files")
