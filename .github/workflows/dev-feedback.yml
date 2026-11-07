@@ -1,0 +1,44 @@
+name: Layer 1 - Dev Feedback (SIMULATION_ONLY)
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  feedback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify Diagnostic Inputs
+        run: |
+          test -f src/ast_parser.py
+          test -f policy/build_gate.rego
+          test -f evidence/ast.json
+
+      - name: AST Diagnostic
+        run: python src/ast_parser.py
+        continue-on-error: true
+
+      - name: Set up OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: '0.60.0'
+
+      - name: OPA Diagnostic
+        run: |
+          opa eval \
+            --format raw \
+            --data policy/ \
+            --input evidence/ast.json \
+            'data.build_gate.allow'
+        continue-on-error: true
