@@ -1,0 +1,9 @@
+{
+  "manifest_version": "1.0.0",
+  "anchor_path": "MEMORY_ANCHOR.lock",
+  "anchor_sha256": "740780e827ac2a4708b42d9c99de0aa37f6270e000d8afb20115fe469435102c",
+  "created_at": "2026-11-07T00:48:38.440121Z",
+  "issuer": "blue-prince-repro-hub",
+  "simulation_only": false,
+  "purpose": "Initial governance memory anchor for negative-test baseline"
+}
