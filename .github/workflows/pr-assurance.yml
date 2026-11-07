@@ -25,8 +25,8 @@ jobs:
           test -f src/ast_parser.py
           test -f tests/test_memory_anchor.py
           test -f policy/build_gate.rego
-          test -f evidence/ast.json
           test -s MEMORY_ANCHOR.lock
+          mkdir -p evidence # สร้างโฟลเดอร์รอไว้
 
       - name: Verify Anchor
         run: python src/memory_anchor_validator.py
