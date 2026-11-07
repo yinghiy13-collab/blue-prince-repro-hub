@@ -1,2 +1,23 @@
-version: 1.0
-project: blue-prince-repro-hub
+version: "1.0.0"
+project: "blue-prince-repro-hub"
+
+invariants:
+  - id: I1
+    name: "No Evidence -> No Trust"
+  - id: I2
+    name: "AI Must Never Govern"
+  - id: I3
+    name: "Fail-Closed by Design"
+  - id: I4
+    name: "Ledger-First"
+
+trust_root:
+  status: "PENDING"
+  decision_due: "2026-01-01"
+
+witness:
+  quorum: 3
+
+recovery:
+  phase: "P4"
+  separate_repo: true
