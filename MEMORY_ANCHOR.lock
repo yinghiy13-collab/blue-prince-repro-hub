@@ -1,0 +1,11 @@
+{
+  "anchorVersion": "BPRH-ANCHOR-v1",
+  "createdAt": "2026-11-06T23:57:08.369599Z",
+  "createdBy": "HUMAN_RELEASE_AUTHORITY",
+  "note": "Human-only. AI MUST NOT regenerate this file.",
+  "specBytes": 450,
+  "specDigest": "sha256:3fb6bc2a60d945aeb87867c4e130fbdcfa11aa130acfd1c4d0bd76664db391ac",
+  "specFile": "MEMORY_ANCHOR.md",
+  "specVersion": "1.0.0",
+  "status": "LOCKED"
+}

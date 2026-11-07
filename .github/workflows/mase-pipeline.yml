@@ -3,6 +3,10 @@ name: MASE Governance Pipeline
 on:
   pull_request:
     branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'policy/**'
+      - '.github/workflows/**' # ต้องรวมอันนี้เพื่อให้แก้ workflow ได้
 
 permissions:
   contents: read
@@ -10,7 +14,6 @@ permissions:
   attestations: write
 
 jobs:
-  # Gate 1: ตรวจสอบหลักฐานเบื้องต้น
   validate-evidence:
     runs-on: ubuntu-latest
     steps:
@@ -18,39 +21,41 @@ jobs:
       - name: Check for evidence.json
         run: |
           if [ ! -f "evidence.json" ]; then
-            echo "❌ FAIL-CLOSED: Missing evidence.json. AI Architect must provide this."
+            echo "FAIL-CLOSED: Missing evidence.json. AI Architect must provide this."
             exit 1
           fi
 
-  # Gate 2: รัน AST Parser และ OPA ตรวจสอบหลักฐานเชิงลึก
   risk-assessment:
     needs: validate-evidence
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
       - name: Run AST Parser
-        run: python scripts/ast_parser.py
-        
+        run: python src/ast_parser.py
+      
       - name: Setup OPA
         uses: open-policy-agent/setup-opa@v2
         with:
           version: "0.60.0"
-          
+      
       - name: OPA Policy Test
         run: opa test policy/ -v
         
-      - name: OPA Risk Evaluation (Gatekeeper)
+      - name: OPA Risk Evaluation (Fail-Closed)
         run: |
-          # OPA ตรวจสอบ ast.json ที่เพิ่งถูกสร้างจาก AST Parser
-          opa eval --data policy/build_gate.rego --input evidence/ast.json "data.build_gate.allow" --fail-defined
+          # PATCH-04: ตรวจสอบให้แน่ใจว่า OPA ตอบ true จริงๆ ไม่ใช่แค่ defined
+          RESULT=$(opa eval --format raw --data policy/ --input evidence/ast.json 'data.build_gate.allow')
+          echo "OPA Result: $RESULT"
           
-  # Gate 3: Attestation (ทำงานเมื่อ OPA ผ่านเท่านั้น)
+          if [ "$RESULT" != "true" ]; then
+            echo "FAIL-CLOSED: OPA policy did not explicitly return true."
+            exit 1
+          fi
+          
   attest-and-release:
     needs: risk-assessment
     runs-on: ubuntu-latest
@@ -60,5 +65,3 @@ jobs:
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: 'evidence/ast.json'
-      - name: Ready for Human Merge
-        run: echo "✅ ALL CHECKS PASSED. Evidence is tamper-proof. Safe for Human Review."
