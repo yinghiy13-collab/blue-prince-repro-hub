@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
-import ast, json, hashlib, pathlib
+import ast, json, hashlib, pathlib, sys
 
 src_root = pathlib.Path("src")
 evidence_dir = pathlib.Path("evidence")
 evidence_dir.mkdir(exist_ok=True)
 
+# 🎯 จุดที่แก้: เปลี่ยนจาก "BPRH-EVID-v1" เป็น 1 (Integer)
 out = {"version": "v2.1.0-real", "schema_version": 1, "files": []}
 
 for py_file in sorted(src_root.rglob("*.py")):
     if "__pycache__" in str(py_file):
         continue
+        
     code_text = py_file.read_text(encoding="utf-8", errors="ignore")
+    
     try:
         tree = ast.parse(code_text, filename=str(py_file))
         funcs = [n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
         classes = [n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
         ast_ok = True
-    except Exception as e:
-        print(f"SKIP {py_file}: {e}")
-        continue
+    except SyntaxError as e:
+        print(f"FATAL: AST Parsing failed for {py_file}")
+        print(f"Reason: {e}")
+        sys.exit(1) 
 
     sha = hashlib.sha256(code_text.encode("utf-8")).hexdigest()
     out["files"].append({
